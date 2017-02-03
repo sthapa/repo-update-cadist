@@ -63,7 +63,20 @@ for TYPES in NEW IGTFNEW; do
         popd 1>/dev/null 2>>${LOGREDIRECTFILENAME}.stderr
         rm -rf $tmpdir
 
-        svn export --force ${CADISTREPO}/${CADISTREPORELEASETYPE}/ca-certs-version-${VERSION_CA}${SUFFIX} ${TMP}/cadist/ca-certs-version${FILEEXT}  1>/dev/null 2>>${LOGREDIRECTFILENAME}.stderr
+        VERSIONFILE="${TMP}/cadist/ca-certs-version${FILEEXT}"
+        svn export --force ${CADISTREPO}/${CADISTREPORELEASETYPE}/ca-certs-version-${VERSION_CA}${SUFFIX} $VERSIONFILE  1>/dev/null 2>>${LOGREDIRECTFILENAME}.stderr
+
+        expected_md5sum=$(
+            perl -lne '/^\s*tarball_md5sum\s*=\s*(\w+)/ and print "$1"' \
+                "$VERSIONFILE")
+        actual_md5sum=$(md5sum "$CATARBALL" | awk '{print $1}')
+
+        if [[ $expected_md5sum != $actual_md5sum ]]; then
+            echo "$CATARBALL md5sum mismatch"
+            echo "Expected: $expected_md5sum"
+            echo "Actual:   $actual_md5sum"
+        fi
+
         #svn export --force ${CADISTREPO}/${CADISTREPORELEASETYPE}/cacerts_md5sum-${VERSION_CA}${SUFFIX}.txt ${TMP}/cadist/cacerts_md5sum${FILEEXT}.txt  1>/dev/null 2>>${LOGREDIRECTFILENAME}.stderr
         #svn export --force ${CADISTREPO}/${CADISTREPORELEASETYPE}/osg-certificates-${VERSION_CA}${SUFFIX}.tar.gz ${CATARBALL}  1>/dev/null 2>>${LOGREDIRECTFILENAME}.stderr
         #svn export --force ${CADISTREPO}/${CADISTREPORELEASETYPE}/osg-certificates-${VERSION_CA}${SUFFIX}.tar.gz.sig ${CASIGFILE}  1>/dev/null 2>>${LOGREDIRECTFILENAME}.stderr
