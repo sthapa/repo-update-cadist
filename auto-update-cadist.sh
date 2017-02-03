@@ -47,6 +47,7 @@ for TYPES in NEW IGTFNEW; do
         mkdir -p ${TMP}/cadist/${VERSION_CA}${SUFFIX}
         mv -f "$tarball" "$CATARBALL" 1>/dev/null 2>>${LOGREDIRECTFILENAME}.stderr
         popd 1>/dev/null 2>>${LOGREDIRECTFILENAME}.stderr
+        rm -rf $tmpdir
 
         svn export --force ${CADISTREPO}/${CADISTREPORELEASETYPE}/ca-certs-version-${VERSION_CA}${SUFFIX} ${TMP}/cadist/ca-certs-version${FILEEXT}  1>/dev/null 2>>${LOGREDIRECTFILENAME}.stderr
         #svn export --force ${CADISTREPO}/${CADISTREPORELEASETYPE}/cacerts_md5sum-${VERSION_CA}${SUFFIX}.txt ${TMP}/cadist/cacerts_md5sum${FILEEXT}.txt  1>/dev/null 2>>${LOGREDIRECTFILENAME}.stderr
