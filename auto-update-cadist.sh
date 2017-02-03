@@ -13,6 +13,10 @@ OSG_SECURITY_PUBKEY=$(basename "$OSG_SECURITY_PUBKEY_URL")
 
 LOGREDIRECTFILENAME="/var/log/auto-update-log"
 
+# Redirect all stderr output to file
+exec 2>>$LOGREDIRECTFILENAME.stderr
+
+
 GPG_HOME=$(mktemp -d)
 trap 'rm -rf "$GPG_HOME"' EXIT
 
@@ -54,30 +58,30 @@ for TYPES in NEW IGTFNEW; do
         esac
 
         tmpdir=$(mktemp -d)
-        pushd $tmpdir 1>/dev/null 2>>${LOGREDIRECTFILENAME}.stderr
-        yumdownloader --source $RPM 1>/dev/null 2>>${LOGREDIRECTFILENAME}.stderr
-        rpm2cpio *.src.rpm | cpio --quiet -id '*.tar.gz' 1>/dev/null 2>>${LOGREDIRECTFILENAME}.stderr
+        pushd $tmpdir 1>/dev/null
+        yumdownloader --source $RPM 1>/dev/null
+        rpm2cpio *.src.rpm | cpio --quiet -id '*.tar.gz' 1>/dev/null
         tarball=$(echo *.tar.gz)
         echo "$tarball" | grep -q "osg-certificates-.*${SUFFIX}.tar.gz" || \
             echo "Bad tarball name"
         v=${tarball%${SUFFIX}.tar.gz}
         VERSION_CA=${v#osg-certificates-}
         sigfile=${tarball}.sig
-        svn export --force ${CADISTREPO}/${CADISTREPORELEASETYPE}/${sigfile} ${sigfile}  1>/dev/null 2>>${LOGREDIRECTFILENAME}.stderr
-        gpg_wrapper --verify "$sigfile"  1>/dev/null 2>>${LOGREDIRECTFILENAME}.stderr
+        svn export --force ${CADISTREPO}/${CADISTREPORELEASETYPE}/${sigfile} ${sigfile}  1>/dev/null
+        gpg_wrapper --verify "$sigfile"  1>/dev/null
 
         CADIR="${TMP}/cadist/${VERSION_CA}${SUFFIX}"
         CATARBALL="${CADIR}/osg-certificates-${VERSION_CA}${SUFFIX}.tar.gz"
         CASIGFILE="${CADIR}/osg-certificates-${VERSION_CA}${SUFFIX}.tar.gz.sig"
 
         mkdir -p "${CADIR}"
-        mv -f "$tarball" "$CATARBALL" 1>/dev/null 2>>${LOGREDIRECTFILENAME}.stderr
-        mv -f "$sigfile" "$CASIGFILE" 1>/dev/null 2>>${LOGREDIRECTFILENAME}.stderr
-        popd 1>/dev/null 2>>${LOGREDIRECTFILENAME}.stderr
+        mv -f "$tarball" "$CATARBALL" 1>/dev/null
+        mv -f "$sigfile" "$CASIGFILE" 1>/dev/null
+        popd 1>/dev/null
         rm -rf $tmpdir
 
         VERSIONFILE="${TMP}/cadist/ca-certs-version${FILEEXT}"
-        svn export --force ${CADISTREPO}/${CADISTREPORELEASETYPE}/ca-certs-version-${VERSION_CA}${SUFFIX} $VERSIONFILE  1>/dev/null 2>>${LOGREDIRECTFILENAME}.stderr
+        svn export --force ${CADISTREPO}/${CADISTREPORELEASETYPE}/ca-certs-version-${VERSION_CA}${SUFFIX} $VERSIONFILE  1>/dev/null
 
         expected_md5sum=$(
             perl -lne '/^\s*tarball_md5sum\s*=\s*(\w+)/ and print "$1"' \
@@ -97,35 +101,35 @@ for TYPES in NEW IGTFNEW; do
         cd ${TMP}/cadist/${VERSION_CA}${SUFFIX}
 
         ## Extract INDEX.txt and CHANGES file; move them appropriately
-        tar --no-same-owner -zxf ${CATARBALL} -C ${TMP}/cadist/${VERSION_CA}${SUFFIX}  1>/dev/null 2>>${LOGREDIRECTFILENAME}.stderr
-        mv ${EXTRACT_FILES} ${TMP}/cadist/${VERSION_CA}${SUFFIX} 2>>${LOGREDIRECTFILENAME}.stderr
-        mv certificates/cacerts_md5sum.txt ${TMP}/cadist/cacerts_md5sum${FILEEXT}.txt  1>/dev/null 2>>${LOGREDIRECTFILENAME}.stderr
+        tar --no-same-owner -zxf ${CATARBALL} -C ${TMP}/cadist/${VERSION_CA}${SUFFIX}  1>/dev/null
+        mv ${EXTRACT_FILES} ${TMP}/cadist/${VERSION_CA}${SUFFIX}
+        mv certificates/cacerts_md5sum.txt ${TMP}/cadist/cacerts_md5sum${FILEEXT}.txt  1>/dev/null
         rm -rf ${TMP}/cadist/${VERSION_CA}${SUFFIX}/certificates/
 
         ## Create relevant symlinks including current distro
         cd ${TMP}/cadist/
-        ln -f -s ${VERSION_CA}${SUFFIX}/CHANGES ${TMP}/cadist/CHANGES 1>/dev/null 2>>${LOGREDIRECTFILENAME}.stderr
-        ln -f -s ${VERSION_CA}${SUFFIX}/INDEX.txt ${TMP}/cadist/INDEX.txt 1>/dev/null 2>>${LOGREDIRECTFILENAME}.stderr
-        ln -f -s ${VERSION_CA}${SUFFIX}/INDEX.html ${TMP}/cadist/index.html 1>/dev/null 2>>${LOGREDIRECTFILENAME}.stderr
+        ln -f -s ${VERSION_CA}${SUFFIX}/CHANGES ${TMP}/cadist/CHANGES 1>/dev/null
+        ln -f -s ${VERSION_CA}${SUFFIX}/INDEX.txt ${TMP}/cadist/INDEX.txt 1>/dev/null
+        ln -f -s ${VERSION_CA}${SUFFIX}/INDEX.html ${TMP}/cadist/index.html 1>/dev/null
 
 ###     the following will throw an error saying files are the same, this indicated this update has already been done. Detect this for later use
         ln -f -n -s ${VERSION_CA}${SUFFIX} ${TMP}/cadist/ 1>/dev/null 2>/dev/null
 	CHANGE_STATUS=$?
 
-        ln -f -s ${VERSION_CA}${SUFFIX}/CHANGES ${TMP}/cadist/CHANGES-${CURRDIR} 1>/dev/null 2>>${LOGREDIRECTFILENAME}.stderr
-        ln -f -s ${VERSION_CA}${SUFFIX}/INDEX.txt ${TMP}/cadist/INDEX-${CURRDIR}.txt 1>/dev/null 2>>${LOGREDIRECTFILENAME}.stderr
-        ln -f -s ${VERSION_CA}${SUFFIX}/INDEX.html ${TMP}/cadist/index-${CURRDIR}.html 1>/dev/null 2>>${LOGREDIRECTFILENAME}.stderr
-        ln -f -n -s ${VERSION_CA}${SUFFIX} ${TMP}/cadist/${CURRDIR} 1>/dev/null 2>>${LOGREDIRECTFILENAME}.stderr
+        ln -f -s ${VERSION_CA}${SUFFIX}/CHANGES ${TMP}/cadist/CHANGES-${CURRDIR} 1>/dev/null
+        ln -f -s ${VERSION_CA}${SUFFIX}/INDEX.txt ${TMP}/cadist/INDEX-${CURRDIR}.txt 1>/dev/null
+        ln -f -s ${VERSION_CA}${SUFFIX}/INDEX.html ${TMP}/cadist/index-${CURRDIR}.html 1>/dev/null
+        ln -f -n -s ${VERSION_CA}${SUFFIX} ${TMP}/cadist/${CURRDIR} 1>/dev/null
         chmod -R ug+rwX ${TMP}/cadist/
         chmod -R o+rX ${TMP}/cadist/
         chown ${USER}:goc ${TMP}/cadist/
 
 ###     log a change event
 	if [ $CHANGE_STATUS ]; then
-	    echo "no-op for version ${VERSION_CA}" 1>/dev/null 2>/dev/null 
+	    echo "no-op for version ${VERSION_CA}" 1>/dev/null 2>/dev/null
         else
 	    TIMESTAMP=`date`
-	    echo "$TIMESTAMP updated to version ${VERSION_CA}" 1>>${LOGREDIRECTFILENAME}.stdout 2>>${LOGREDIRECTFILENAME}.stderr
+	    echo "$TIMESTAMP updated to version ${VERSION_CA}" 1>>${LOGREDIRECTFILENAME}.stdout
 	fi
 done
 CAINSTALL=${INSTALLBASE}
