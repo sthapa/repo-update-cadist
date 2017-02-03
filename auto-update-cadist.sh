@@ -21,25 +21,39 @@ for TYPES in NEW IGTFNEW; do
                 SYMEXT="igtf-new"
                 FILEEXT="-igtf-new"
                 CURRDIR="igtf-new"
+                RPM="igtf-ca-certs"
                 ;;
             NEW)
                 SYMEXT="new"
                 FILEEXT="-new"
                 CURRDIR="new"
+                RPM="osg-ca-certs"
                 ;;
             *)
                 echo "Bad thing, if this happens something is really wrong"
                 ;;
         esac
 
+        tmpdir=$(mktemp -d)
+        pushd $tmpdir
+        yumdownloader --source $RPM 1>/dev/null 2>>${LOGREDIRECTFILENAME}.stderr
+        rpm2cpio *.src.rpm | cpio --quiet -id '*.tar.gz' 1>/dev/null 2>>${LOGREDIRECTFILENAME}.stderr
+        tarball=$(echo *.tar.gz)
+        echo "$tarball" | grep -q "osg-certificates-.*${SUFFIX}.tar.gz" || \
+            echo "Bad tarball name"
+        v=${tarball%${SUFFIX}.tar.gz}
+        VERSION_CA=${v#osg-certificates-}
+
         CATARBALL="${TMP}/cadist/${VERSION_CA}${SUFFIX}/osg-certificates-${VERSION_CA}${SUFFIX}.tar.gz"
         CASIGFILE="${TMP}/cadist/${VERSION_CA}${SUFFIX}/osg-certificates-${VERSION_CA}${SUFFIX}.tar.gz.sig"
 
         mkdir -p ${TMP}/cadist/${VERSION_CA}${SUFFIX}
+        mv -f "$tarball" "$CATARBALL"
+        popd
 
         svn export --force ${CADISTREPO}/${CADISTREPORELEASETYPE}/ca-certs-version-${VERSION_CA}${SUFFIX} ${TMP}/cadist/ca-certs-version${FILEEXT}  1>/dev/null 2>>${LOGREDIRECTFILENAME}.stderr
         svn export --force ${CADISTREPO}/${CADISTREPORELEASETYPE}/cacerts_md5sum-${VERSION_CA}${SUFFIX}.txt ${TMP}/cadist/cacerts_md5sum${FILEEXT}.txt  1>/dev/null 2>>${LOGREDIRECTFILENAME}.stderr
-        svn export --force ${CADISTREPO}/${CADISTREPORELEASETYPE}/osg-certificates-${VERSION_CA}${SUFFIX}.tar.gz ${CATARBALL}  1>/dev/null 2>>${LOGREDIRECTFILENAME}.stderr
+        #svn export --force ${CADISTREPO}/${CADISTREPORELEASETYPE}/osg-certificates-${VERSION_CA}${SUFFIX}.tar.gz ${CATARBALL}  1>/dev/null 2>>${LOGREDIRECTFILENAME}.stderr
         svn export --force ${CADISTREPO}/${CADISTREPORELEASETYPE}/osg-certificates-${VERSION_CA}${SUFFIX}.tar.gz.sig ${CASIGFILE}  1>/dev/null 2>>${LOGREDIRECTFILENAME}.stderr
         EXTRACT_FILES="certificates/CHANGES certificates/INDEX.html certificates/INDEX.txt"
         cd ${TMP}/cadist/${VERSION_CA}${SUFFIX}
