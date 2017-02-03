@@ -13,12 +13,25 @@ OSG_SECURITY_PUBKEY=$(basename "$OSG_SECURITY_PUBKEY_URL")
 
 LOGREDIRECTFILENAME="/var/log/auto-update-log"
 
-gpg_home=$(mktemp -d)
-trap 'rm -rf "$gpg_home"' EXIT
-wget -q "$OSG_SECURITY_PUBKEY_URL" -O "$gpg_home/$OSG_SECURITY_PUBKEY"
-gpg_cmd="gpg --homedir=$gpg_home"
-$gpg_cmd --import "$gpg_home/$OSG_SECURITY_PUBKEY"
+GPG_HOME=$(mktemp -d)
+trap 'rm -rf "$GPG_HOME"' EXIT
 
+# gpg is noisy and sends output to stderr even when things are going fine
+# silence output unless there is an error
+gpg_wrapper () {
+    local outputfile ret
+    outputfile=$(mktemp)
+    gpg --homedir=$GPG_HOME "$@"  >$outputfile 2>&1
+    ret=$?
+    if [[ $ret != 0 ]]; then
+        cat $outputfile 1>&2
+    fi
+    rm -f $outputfile
+    return $ret
+}
+
+wget -q "$OSG_SECURITY_PUBKEY_URL" -O "$GPG_HOME/$OSG_SECURITY_PUBKEY"
+gpg_wrapper --import "$GPG_HOME/$OSG_SECURITY_PUBKEY"
 
 for TYPES in NEW IGTFNEW; do
         SUFFIX=$TYPES
@@ -51,7 +64,7 @@ for TYPES in NEW IGTFNEW; do
         VERSION_CA=${v#osg-certificates-}
         sigfile=${tarball}.sig
         svn export --force ${CADISTREPO}/${CADISTREPORELEASETYPE}/${sigfile} ${sigfile}  1>/dev/null 2>>${LOGREDIRECTFILENAME}.stderr
-        $gpg_cmd --verify "$sigfile"
+        gpg_wrapper --verify "$sigfile"  1>/dev/null 2>>${LOGREDIRECTFILENAME}.stderr
 
         CADIR="${TMP}/cadist/${VERSION_CA}${SUFFIX}"
         CATARBALL="${CADIR}/osg-certificates-${VERSION_CA}${SUFFIX}.tar.gz"
