@@ -8,7 +8,16 @@ INSTALLBASE="${GOC}/repo"
 CADISTREPO="https://vdt.cs.wisc.edu/svn/certs/trunk/cadist"
 CADISTREPORELEASETYPE="release"
 
+OSG_SECURITY_PUBKEY_URL=https://twiki.opensciencegrid.org/twiki/pub/Security/SecurityTeamMembers/osg-security-pubkey.asc
+OSG_SECURITY_PUBKEY=$(basename "$OSG_SECURITY_PUBKEY_URL")
+
 LOGREDIRECTFILENAME="/var/log/auto-update-log"
+
+gpg_home=$(mktemp -d)
+trap 'rm -rf "$gpg_home"' EXIT
+wget -q "$OSG_SECURITY_PUBKEY_URL" -O "$gpg_home/$OSG_SECURITY_PUBKEY"
+gpg_cmd="gpg --homedir=$gpg_home"
+$gpg_cmd --import "$gpg_home/$OSG_SECURITY_PUBKEY"
 
 
 for TYPES in NEW IGTFNEW; do
@@ -40,19 +49,24 @@ for TYPES in NEW IGTFNEW; do
             echo "Bad tarball name"
         v=${tarball%${SUFFIX}.tar.gz}
         VERSION_CA=${v#osg-certificates-}
+        sigfile=${tarball}.sig
+        svn export --force ${CADISTREPO}/${CADISTREPORELEASETYPE}/${sigfile} ${sigfile}  1>/dev/null 2>>${LOGREDIRECTFILENAME}.stderr
+        $gpg_cmd --verify "$sigfile"
 
-        CATARBALL="${TMP}/cadist/${VERSION_CA}${SUFFIX}/osg-certificates-${VERSION_CA}${SUFFIX}.tar.gz"
-        CASIGFILE="${TMP}/cadist/${VERSION_CA}${SUFFIX}/osg-certificates-${VERSION_CA}${SUFFIX}.tar.gz.sig"
+        CADIR="${TMP}/cadist/${VERSION_CA}${SUFFIX}"
+        CATARBALL="${CADIR}/osg-certificates-${VERSION_CA}${SUFFIX}.tar.gz"
+        CASIGFILE="${CADIR}/osg-certificates-${VERSION_CA}${SUFFIX}.tar.gz.sig"
 
-        mkdir -p ${TMP}/cadist/${VERSION_CA}${SUFFIX}
+        mkdir -p "${CADIR}"
         mv -f "$tarball" "$CATARBALL" 1>/dev/null 2>>${LOGREDIRECTFILENAME}.stderr
+        mv -f "$sigfile" "$CASIGFILE" 1>/dev/null 2>>${LOGREDIRECTFILENAME}.stderr
         popd 1>/dev/null 2>>${LOGREDIRECTFILENAME}.stderr
         rm -rf $tmpdir
 
         svn export --force ${CADISTREPO}/${CADISTREPORELEASETYPE}/ca-certs-version-${VERSION_CA}${SUFFIX} ${TMP}/cadist/ca-certs-version${FILEEXT}  1>/dev/null 2>>${LOGREDIRECTFILENAME}.stderr
         #svn export --force ${CADISTREPO}/${CADISTREPORELEASETYPE}/cacerts_md5sum-${VERSION_CA}${SUFFIX}.txt ${TMP}/cadist/cacerts_md5sum${FILEEXT}.txt  1>/dev/null 2>>${LOGREDIRECTFILENAME}.stderr
         #svn export --force ${CADISTREPO}/${CADISTREPORELEASETYPE}/osg-certificates-${VERSION_CA}${SUFFIX}.tar.gz ${CATARBALL}  1>/dev/null 2>>${LOGREDIRECTFILENAME}.stderr
-        svn export --force ${CADISTREPO}/${CADISTREPORELEASETYPE}/osg-certificates-${VERSION_CA}${SUFFIX}.tar.gz.sig ${CASIGFILE}  1>/dev/null 2>>${LOGREDIRECTFILENAME}.stderr
+        #svn export --force ${CADISTREPO}/${CADISTREPORELEASETYPE}/osg-certificates-${VERSION_CA}${SUFFIX}.tar.gz.sig ${CASIGFILE}  1>/dev/null 2>>${LOGREDIRECTFILENAME}.stderr
         EXTRACT_FILES="certificates/CHANGES certificates/INDEX.html certificates/INDEX.txt"
         cd ${TMP}/cadist/${VERSION_CA}${SUFFIX}
 
