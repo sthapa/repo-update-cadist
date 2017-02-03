@@ -10,9 +10,6 @@ CADISTREPORELEASETYPE="release"
 
 LOGREDIRECTFILENAME="/var/log/auto-update-log"
 
-### Automatic detection of the version number
-version=`svn --non-interactive --trust-server-cert list ${CADISTREPO}/${CADISTREPORELEASETYPE} | grep IGTFNEW | sort | grep ca-certs-version | tail -1 | awk -F- '{print $4}'`
-VERSION_CA=`echo ${version%???????}`
 
 for TYPES in NEW IGTFNEW; do
         SUFFIX=$TYPES
@@ -35,7 +32,7 @@ for TYPES in NEW IGTFNEW; do
         esac
 
         tmpdir=$(mktemp -d)
-        pushd $tmpdir
+        pushd $tmpdir 1>/dev/null 2>>${LOGREDIRECTFILENAME}.stderr
         yumdownloader --source $RPM 1>/dev/null 2>>${LOGREDIRECTFILENAME}.stderr
         rpm2cpio *.src.rpm | cpio --quiet -id '*.tar.gz' 1>/dev/null 2>>${LOGREDIRECTFILENAME}.stderr
         tarball=$(echo *.tar.gz)
@@ -48,19 +45,20 @@ for TYPES in NEW IGTFNEW; do
         CASIGFILE="${TMP}/cadist/${VERSION_CA}${SUFFIX}/osg-certificates-${VERSION_CA}${SUFFIX}.tar.gz.sig"
 
         mkdir -p ${TMP}/cadist/${VERSION_CA}${SUFFIX}
-        mv -f "$tarball" "$CATARBALL"
-        popd
+        mv -f "$tarball" "$CATARBALL" 1>/dev/null 2>>${LOGREDIRECTFILENAME}.stderr
+        popd 1>/dev/null 2>>${LOGREDIRECTFILENAME}.stderr
 
         svn export --force ${CADISTREPO}/${CADISTREPORELEASETYPE}/ca-certs-version-${VERSION_CA}${SUFFIX} ${TMP}/cadist/ca-certs-version${FILEEXT}  1>/dev/null 2>>${LOGREDIRECTFILENAME}.stderr
-        svn export --force ${CADISTREPO}/${CADISTREPORELEASETYPE}/cacerts_md5sum-${VERSION_CA}${SUFFIX}.txt ${TMP}/cadist/cacerts_md5sum${FILEEXT}.txt  1>/dev/null 2>>${LOGREDIRECTFILENAME}.stderr
+        #svn export --force ${CADISTREPO}/${CADISTREPORELEASETYPE}/cacerts_md5sum-${VERSION_CA}${SUFFIX}.txt ${TMP}/cadist/cacerts_md5sum${FILEEXT}.txt  1>/dev/null 2>>${LOGREDIRECTFILENAME}.stderr
         #svn export --force ${CADISTREPO}/${CADISTREPORELEASETYPE}/osg-certificates-${VERSION_CA}${SUFFIX}.tar.gz ${CATARBALL}  1>/dev/null 2>>${LOGREDIRECTFILENAME}.stderr
         svn export --force ${CADISTREPO}/${CADISTREPORELEASETYPE}/osg-certificates-${VERSION_CA}${SUFFIX}.tar.gz.sig ${CASIGFILE}  1>/dev/null 2>>${LOGREDIRECTFILENAME}.stderr
         EXTRACT_FILES="certificates/CHANGES certificates/INDEX.html certificates/INDEX.txt"
         cd ${TMP}/cadist/${VERSION_CA}${SUFFIX}
 
         ## Extract INDEX.txt and CHANGES file; move them appropriately
-        tar --no-same-owner -zxvf ${CATARBALL} -C ${TMP}/cadist/${VERSION_CA}${SUFFIX}  1>/dev/null 2>>${LOGREDIRECTFILENAME}.stderr 
-        mv ${EXTRACT_FILES} ${TMP}/cadist/${VERSION_CA}${SUFFIX} 2>>${LOGREDIRECTFILENAME}.stderr 
+        tar --no-same-owner -zxf ${CATARBALL} -C ${TMP}/cadist/${VERSION_CA}${SUFFIX}  1>/dev/null 2>>${LOGREDIRECTFILENAME}.stderr
+        mv ${EXTRACT_FILES} ${TMP}/cadist/${VERSION_CA}${SUFFIX} 2>>${LOGREDIRECTFILENAME}.stderr
+        mv certificates/cacerts_md5sum.txt ${TMP}/cadist/cacerts_md5sum${FILEEXT}.txt  1>/dev/null 2>>${LOGREDIRECTFILENAME}.stderr
         rm -rf ${TMP}/cadist/${VERSION_CA}${SUFFIX}/certificates/
 
         ## Create relevant symlinks including current distro
