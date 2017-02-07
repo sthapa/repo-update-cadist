@@ -66,24 +66,24 @@ for TYPES in NEW IGTFNEW; do
             ;;
     esac
 
-    downloaddir=$TMPROOT/download-$SUFFIX
-    mkdir -p "$downloaddir"
-    pushd $downloaddir >/dev/null
-    yumdownloader --disablerepo=\* --enablerepo=${RPMREPO}-source --source $RPM >/dev/null
-    rpmfile=$(/bin/ls *.src.rpm)
-    if [[ ! -f $rpmfile ]]; then
+    DOWNLOADDIR=$TMPROOT/download-$SUFFIX
+    mkdir -p "$DOWNLOADDIR"
+    pushd "$DOWNLOADDIR" >/dev/null
+    yumdownloader --disablerepo=\* --enablerepo="$RPMREPO-source" --source "$RPM" >/dev/null
+    RPMFILE=$(/bin/ls *.src.rpm)
+    if [[ ! -f $RPMFILE ]]; then
         message "$RPM: unable to download from repos"
         exit 1
     fi
-    rpm2cpio $rpmfile | cpio --quiet -id '*.tar.gz'
+    rpm2cpio "$RPMFILE" | cpio --quiet -id '*.tar.gz'
     TARBALL=$(/bin/ls *.tar.gz)
     if [[ ! -f $TARBALL ]]; then
-        message "$rpmfile: couldn't extract tarball"
+        message "$RPMFILE: couldn't extract tarball"
         exit 1
     fi
     if ! echo "$TARBALL" | grep -Eq "^osg-certificates-[[:digit:]]+\.[[:digit:]]+${SUFFIX}.tar.gz$"; then
         message "$TARBALL: bad tarball name"
-        message "Extracted from $rpmfile"
+        message "Extracted from $RPMFILE"
         exit 1
     fi
     v=${TARBALL%${SUFFIX}.tar.gz}
@@ -108,7 +108,7 @@ for TYPES in NEW IGTFNEW; do
     mv -f "$TARBALL" "$CATARBALL"
     mv -f "$SIGFILE" "$CASIGFILE"
     popd >/dev/null
-    rm -rf $downloaddir
+    rm -rf "$DOWNLOADDIR"
 
     VERSIONFILE_URL=${CADISTREPO}/${CADISTREPORELEASETYPE}/ca-certs-version-${VERSION_CA}${SUFFIX}
     VERSIONFILE=${TMPROOT}/cadist/ca-certs-version${FILEEXT}
