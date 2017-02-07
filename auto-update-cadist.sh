@@ -39,7 +39,7 @@ gpg_wrapper () {
 }
 
 message () {
-    echo '***' "$@" >&2
+    echo "$(date)" "$@" >&2
 }
 
 wget -q "$OSG_SECURITY_PUBKEY_URL" -O "$GPG_HOME/$OSG_SECURITY_PUBKEY"
