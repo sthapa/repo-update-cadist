@@ -1,6 +1,8 @@
 #!/bin/bash
 ## minimal script to update cadist on repo1,repo2,repo-itb
 
+set -o nounset
+
 TMP=/tmp
 DATE=`date -u +%F_%H.%M.%S`
 GOC="/usr/local"
@@ -34,6 +36,10 @@ gpg_wrapper () {
     return $ret
 }
 
+message () {
+    echo '***' "$@" >&2
+}
+
 wget -q "$OSG_SECURITY_PUBKEY_URL" -O "$GPG_HOME/$OSG_SECURITY_PUBKEY"
 gpg_wrapper --import "$GPG_HOME/$OSG_SECURITY_PUBKEY"
 
@@ -53,35 +59,61 @@ for TYPES in NEW IGTFNEW; do
                 RPM="osg-ca-certs"
                 ;;
             *)
-                echo "Bad thing, if this happens something is really wrong"
+                message "Bad thing, if this happens something is really wrong"
+                exit 1
                 ;;
         esac
 
         tmpdir=$(mktemp -d)
         pushd $tmpdir >/dev/null
         yumdownloader --source $RPM >/dev/null
-        rpm2cpio *.src.rpm | cpio --quiet -id '*.tar.gz'
-        tarball=$(echo *.tar.gz)
-        echo "$tarball" | grep -q "osg-certificates-.*${SUFFIX}.tar.gz" || \
-            echo "Bad tarball name"
-        v=${tarball%${SUFFIX}.tar.gz}
+        rpmfile=$(/bin/ls *.src.rpm)
+        if [[ ! -f $rpmfile ]]; then
+            message "$RPM: unable to download from repos"
+            exit 1
+        fi
+        rpm2cpio $rpmfile | cpio --quiet -id '*.tar.gz'
+        TARBALL=$(/bin/ls *.tar.gz)
+        if [[ ! -f $TARBALL ]]; then
+            message "$rpmfile: couldn't extract tarball"
+            exit 1
+        fi
+        if ! echo "$TARBALL" | grep -Eq "osg-certificates-[[:digit:]]+\.[[:digit:]]+${SUFFIX}.tar.gz"; then
+            message "$TARBALL: bad tarball name"
+            message "Extracted from $rpmfile"
+            exit 1
+        fi
+        v=${TARBALL%${SUFFIX}.tar.gz}
         VERSION_CA=${v#osg-certificates-}
-        sigfile=${tarball}.sig
-        svn export -q --force ${CADISTREPO}/${CADISTREPORELEASETYPE}/${sigfile} ${sigfile}
-        gpg_wrapper --verify "$sigfile"
+        SIGFILE=${TARBALL}.sig
+        SIGFILE_URL=${CADISTREPO}/${CADISTREPORELEASETYPE}/${SIGFILE}
+        if ! svn export -q --force "$SIGFILE_URL" "$SIGFILE"; then
+            message "$SIGFILE: unable to download"
+            message "Upstream URL: $SIGFILE_URL"
+            exit 1
+        fi
+        if ! gpg_wrapper --verify "$SIGFILE"; then
+            message "$tarball: GPG verification failed"
+            exit 1
+        fi
 
         CADIR="${TMP}/cadist/${VERSION_CA}${SUFFIX}"
-        CATARBALL="${CADIR}/osg-certificates-${VERSION_CA}${SUFFIX}.tar.gz"
-        CASIGFILE="${CADIR}/osg-certificates-${VERSION_CA}${SUFFIX}.tar.gz.sig"
+        CATARBALL="${CADIR}/$TARBALL"
+        CASIGFILE="${CADIR}/$SIGFILE"
 
         mkdir -p "${CADIR}"
-        mv -f "$tarball" "$CATARBALL"
-        mv -f "$sigfile" "$CASIGFILE"
+        mv -f "$TARBALL" "$CATARBALL"
+        mv -f "$SIGFILE" "$CASIGFILE"
         popd >/dev/null
         rm -rf $tmpdir
 
-        VERSIONFILE="${TMP}/cadist/ca-certs-version${FILEEXT}"
-        svn export -q --force ${CADISTREPO}/${CADISTREPORELEASETYPE}/ca-certs-version-${VERSION_CA}${SUFFIX} $VERSIONFILE
+        VERSIONFILE_URL=${CADISTREPO}/${CADISTREPORELEASETYPE}/ca-certs-version-${VERSION_CA}${SUFFIX}
+        VERSIONFILE=${TMP}/cadist/ca-certs-version${FILEEXT}
+        if ! svn export -q --force "$VERSIONFILE_URL" "$VERSIONFILE"; then
+            message "$VERSIONFILE: unable to download"
+            message "Upstream URL: $VERSIONFILE_URL"
+            exit 1
+        fi
 
         expected_md5sum=$(
             perl -lne '/^\s*tarball_md5sum\s*=\s*(\w+)/ and print "$1"' \
@@ -89,19 +121,20 @@ for TYPES in NEW IGTFNEW; do
         actual_md5sum=$(md5sum "$CATARBALL" | awk '{print $1}')
 
         if [[ $expected_md5sum != $actual_md5sum ]]; then
-            echo "$CATARBALL md5sum mismatch"
-            echo "Expected: $expected_md5sum"
-            echo "Actual:   $actual_md5sum"
+            message "$CATARBALL: md5sum mismatch"
+            message "Expected: $expected_md5sum"
+            message "Actual:   $actual_md5sum"
+            exit 1
         fi
 
         EXTRACT_FILES="certificates/CHANGES certificates/INDEX.html certificates/INDEX.txt"
-        cd ${TMP}/cadist/${VERSION_CA}${SUFFIX}
+        cd "$CADIR"
 
         ## Extract INDEX.txt and CHANGES file; move them appropriately
-        tar --no-same-owner -zxf ${CATARBALL} -C ${TMP}/cadist/${VERSION_CA}${SUFFIX}
-        mv ${EXTRACT_FILES} ${TMP}/cadist/${VERSION_CA}${SUFFIX}
+        tar --no-same-owner -zxf ${CATARBALL} -C "$CADIR"
+        mv ${EXTRACT_FILES} "$CADIR"
         mv certificates/cacerts_md5sum.txt ${TMP}/cadist/cacerts_md5sum${FILEEXT}.txt
-        rm -rf ${TMP}/cadist/${VERSION_CA}${SUFFIX}/certificates/
+        rm -rf "${CADIR}/certificates/"
 
         ## Create relevant symlinks including current distro
         cd ${TMP}/cadist/
