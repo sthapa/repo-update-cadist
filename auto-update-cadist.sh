@@ -4,9 +4,9 @@
 set -o nounset
 
 TMP=$(mktemp -d)
-DATE=`date -u +%F_%H.%M.%S`
-GOC="/usr/local"
-INSTALLBASE="${GOC}/repo"
+GOC=/usr/local
+INSTALLBASE=${GOC}/repo
+CAINSTALL=${INSTALLBASE}/cadist
 CADISTREPO="https://vdt.cs.wisc.edu/svn/certs/trunk/cadist"
 CADISTREPORELEASETYPE="release"
 
@@ -142,10 +142,6 @@ for TYPES in NEW IGTFNEW; do
         ln -f -s ${VERSION_CA}${SUFFIX}/INDEX.txt ${TMP}/cadist/INDEX.txt
         ln -f -s ${VERSION_CA}${SUFFIX}/INDEX.html ${TMP}/cadist/index.html
 
-###     the following will throw an error saying files are the same, this indicated this update has already been done. Detect this for later use
-        ln -f -n -s ${VERSION_CA}${SUFFIX} ${TMP}/cadist/ 2>/dev/null
-	CHANGE_STATUS=$?
-
         ln -f -s ${VERSION_CA}${SUFFIX}/CHANGES ${TMP}/cadist/CHANGES-${CURRDIR}
         ln -f -s ${VERSION_CA}${SUFFIX}/INDEX.txt ${TMP}/cadist/INDEX-${CURRDIR}.txt
         ln -f -s ${VERSION_CA}${SUFFIX}/INDEX.html ${TMP}/cadist/index-${CURRDIR}.html
@@ -154,16 +150,12 @@ for TYPES in NEW IGTFNEW; do
         chmod -R o+rX ${TMP}/cadist/
         chown ${USER}:goc ${TMP}/cadist/
 
-###     log a change event
-	if [ $CHANGE_STATUS ]; then
-	    echo "no-op for version ${VERSION_CA}" 1>/dev/null 2>/dev/null
-        else
-	    TIMESTAMP=`date`
-	    echo "$TIMESTAMP updated to version ${VERSION_CA}" 1>>${LOGREDIRECTFILENAME}.stdout
-	fi
+        ## Log a new version
+        if [[ ! -d ${CAINSTALL}/${VERSION_CA}${SUFFIX} ]]; then
+            echo "$(date) updated to version ${VERSION_CA}${SUFFIX}" >>${LOGREDIRECTFILENAME}.stdout
+        fi
 done
-mkdir -p ${INSTALLBASE}
-CAINSTALL=${INSTALLBASE}
-rm -rf ${CAINSTALL}/cadist
-mv ${TMP}/cadist ${CAINSTALL}
+mkdir -p "$INSTALLBASE"
+rm -rf "$CAINSTALL"
+mv ${TMP}/cadist "$CAINSTALL"
 rmdir ${TMP}
