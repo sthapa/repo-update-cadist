@@ -3,7 +3,7 @@
 
 set -o nounset
 
-TMP=/tmp
+TMP=$(mktemp -d)
 DATE=`date -u +%F_%H.%M.%S`
 GOC="/usr/local"
 INSTALLBASE="${GOC}/repo"
@@ -64,8 +64,8 @@ for TYPES in NEW IGTFNEW; do
                 ;;
         esac
 
-        tmpdir=$(mktemp -d)
-        pushd $tmpdir >/dev/null
+        downloaddir=$(mktemp -d)
+        pushd $downloaddir >/dev/null
         yumdownloader --source $RPM >/dev/null
         rpmfile=$(/bin/ls *.src.rpm)
         if [[ ! -f $rpmfile ]]; then
@@ -78,7 +78,7 @@ for TYPES in NEW IGTFNEW; do
             message "$rpmfile: couldn't extract tarball"
             exit 1
         fi
-        if ! echo "$TARBALL" | grep -Eq "osg-certificates-[[:digit:]]+\.[[:digit:]]+${SUFFIX}.tar.gz"; then
+        if ! echo "$TARBALL" | grep -Eq "^osg-certificates-[[:digit:]]+\.[[:digit:]]+${SUFFIX}.tar.gz$"; then
             message "$TARBALL: bad tarball name"
             message "Extracted from $rpmfile"
             exit 1
@@ -105,7 +105,7 @@ for TYPES in NEW IGTFNEW; do
         mv -f "$TARBALL" "$CATARBALL"
         mv -f "$SIGFILE" "$CASIGFILE"
         popd >/dev/null
-        rm -rf $tmpdir
+        rm -rf $downloaddir
 
         VERSIONFILE_URL=${CADISTREPO}/${CADISTREPORELEASETYPE}/ca-certs-version-${VERSION_CA}${SUFFIX}
         VERSIONFILE=${TMP}/cadist/ca-certs-version${FILEEXT}
@@ -131,7 +131,7 @@ for TYPES in NEW IGTFNEW; do
         cd "$CADIR"
 
         ## Extract INDEX.txt and CHANGES file; move them appropriately
-        tar --no-same-owner -zxf ${CATARBALL} -C "$CADIR"
+        tar --no-same-owner -zxf "${CATARBALL}" -C "$CADIR"
         mv ${EXTRACT_FILES} "$CADIR"
         mv certificates/cacerts_md5sum.txt ${TMP}/cadist/cacerts_md5sum${FILEEXT}.txt
         rm -rf "${CADIR}/certificates/"
@@ -165,3 +165,4 @@ done
 CAINSTALL=${INSTALLBASE}
 rm -rf ${CAINSTALL}/cadist
 mv ${TMP}/cadist ${CAINSTALL}
+rmdir ${TMP}
