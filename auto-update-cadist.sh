@@ -93,7 +93,7 @@ for TYPES in NEW IGTFNEW; do
         exit 1
     fi
     if ! gpg_wrapper --verify "$SIGFILE"; then
-        message "$tarball: GPG verification failed"
+        message "$TARBALL: GPG verification failed"
         exit 1
     fi
 
