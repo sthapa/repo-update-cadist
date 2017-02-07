@@ -3,7 +3,8 @@
 
 set -o nounset
 
-TMP=$(mktemp -d)
+TMPROOT=$(mktemp -d)
+trap 'rm -rf "$TMPROOT"' EXIT
 GOC=/usr/local
 INSTALLBASE=${GOC}/repo
 CAINSTALL=${INSTALLBASE}/cadist
@@ -20,8 +21,8 @@ LOGREDIRECTFILENAME="/var/log/auto-update-log"
 exec 2>>$LOGREDIRECTFILENAME.stderr
 
 
-GPG_HOME=$(mktemp -d)
-trap 'rm -rf "$GPG_HOME"' EXIT
+GPG_HOME=$TMPROOT/GPG_HOME
+mkdir -p "$GPG_HOME"
 
 # gpg is noisy and sends output to stderr even when things are going fine
 # silence output unless there is an error
@@ -65,7 +66,8 @@ for TYPES in NEW IGTFNEW; do
             ;;
     esac
 
-    downloaddir=$(mktemp -d)
+    downloaddir=$TMPROOT/download-$SUFFIX
+    mkdir -p "$downloaddir"
     pushd $downloaddir >/dev/null
     yumdownloader --disablerepo=\* --enablerepo=${RPMREPO}-source --source $RPM >/dev/null
     rpmfile=$(/bin/ls *.src.rpm)
@@ -98,7 +100,7 @@ for TYPES in NEW IGTFNEW; do
         exit 1
     fi
 
-    CADIR="${TMP}/cadist/${VERSION_CA}${SUFFIX}"
+    CADIR="${TMPROOT}/cadist/${VERSION_CA}${SUFFIX}"
     CATARBALL="${CADIR}/$TARBALL"
     CASIGFILE="${CADIR}/$SIGFILE"
 
@@ -109,7 +111,7 @@ for TYPES in NEW IGTFNEW; do
     rm -rf $downloaddir
 
     VERSIONFILE_URL=${CADISTREPO}/${CADISTREPORELEASETYPE}/ca-certs-version-${VERSION_CA}${SUFFIX}
-    VERSIONFILE=${TMP}/cadist/ca-certs-version${FILEEXT}
+    VERSIONFILE=${TMPROOT}/cadist/ca-certs-version${FILEEXT}
     if ! svn export -q --force "$VERSIONFILE_URL" "$VERSIONFILE"; then
         message "$VERSIONFILE: unable to download"
         message "Upstream URL: $VERSIONFILE_URL"
@@ -134,22 +136,22 @@ for TYPES in NEW IGTFNEW; do
     ## Extract INDEX.txt and CHANGES file; move them appropriately
     tar --no-same-owner -zxf "${CATARBALL}" -C "$CADIR"
     mv ${EXTRACT_FILES} "$CADIR"
-    mv certificates/cacerts_md5sum.txt ${TMP}/cadist/cacerts_md5sum${FILEEXT}.txt
+    mv certificates/cacerts_md5sum.txt ${TMPROOT}/cadist/cacerts_md5sum${FILEEXT}.txt
     rm -rf "${CADIR}/certificates/"
 
     ## Create relevant symlinks including current distro
-    cd ${TMP}/cadist/
-    ln -f -s ${VERSION_CA}${SUFFIX}/CHANGES ${TMP}/cadist/CHANGES
-    ln -f -s ${VERSION_CA}${SUFFIX}/INDEX.txt ${TMP}/cadist/INDEX.txt
-    ln -f -s ${VERSION_CA}${SUFFIX}/INDEX.html ${TMP}/cadist/index.html
+    cd ${TMPROOT}/cadist/
+    ln -f -s ${VERSION_CA}${SUFFIX}/CHANGES ${TMPROOT}/cadist/CHANGES
+    ln -f -s ${VERSION_CA}${SUFFIX}/INDEX.txt ${TMPROOT}/cadist/INDEX.txt
+    ln -f -s ${VERSION_CA}${SUFFIX}/INDEX.html ${TMPROOT}/cadist/index.html
 
-    ln -f -s ${VERSION_CA}${SUFFIX}/CHANGES ${TMP}/cadist/CHANGES-${CURRDIR}
-    ln -f -s ${VERSION_CA}${SUFFIX}/INDEX.txt ${TMP}/cadist/INDEX-${CURRDIR}.txt
-    ln -f -s ${VERSION_CA}${SUFFIX}/INDEX.html ${TMP}/cadist/index-${CURRDIR}.html
-    ln -f -n -s ${VERSION_CA}${SUFFIX} ${TMP}/cadist/${CURRDIR}
-    chmod -R ug+rwX ${TMP}/cadist/
-    chmod -R o+rX ${TMP}/cadist/
-    chown ${USER}:goc ${TMP}/cadist/
+    ln -f -s ${VERSION_CA}${SUFFIX}/CHANGES ${TMPROOT}/cadist/CHANGES-${CURRDIR}
+    ln -f -s ${VERSION_CA}${SUFFIX}/INDEX.txt ${TMPROOT}/cadist/INDEX-${CURRDIR}.txt
+    ln -f -s ${VERSION_CA}${SUFFIX}/INDEX.html ${TMPROOT}/cadist/index-${CURRDIR}.html
+    ln -f -n -s ${VERSION_CA}${SUFFIX} ${TMPROOT}/cadist/${CURRDIR}
+    chmod -R ug+rwX ${TMPROOT}/cadist/
+    chmod -R o+rX ${TMPROOT}/cadist/
+    chown ${USER}:goc ${TMPROOT}/cadist/
 
     ## Log a new version
     if [[ ! -d ${CAINSTALL}/${VERSION_CA}${SUFFIX} ]]; then
@@ -158,5 +160,4 @@ for TYPES in NEW IGTFNEW; do
 done
 mkdir -p "$INSTALLBASE"
 rm -rf "$CAINSTALL"
-mv ${TMP}/cadist "$CAINSTALL"
-rmdir ${TMP}
+mv "$TMPROOT/cadist" "$CAINSTALL"
