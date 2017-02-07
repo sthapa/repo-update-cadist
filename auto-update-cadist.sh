@@ -162,6 +162,7 @@ for TYPES in NEW IGTFNEW; do
 	    echo "$TIMESTAMP updated to version ${VERSION_CA}" 1>>${LOGREDIRECTFILENAME}.stdout
 	fi
 done
+mkdir -p ${INSTALLBASE}
 CAINSTALL=${INSTALLBASE}
 rm -rf ${CAINSTALL}/cadist
 mv ${TMP}/cadist ${CAINSTALL}
