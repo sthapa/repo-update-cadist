@@ -43,7 +43,11 @@ message () {
 }
 
 wget -q "$OSG_SECURITY_PUBKEY_URL" -O "$GPG_HOME/$OSG_SECURITY_PUBKEY"
-gpg_wrapper --import "$GPG_HOME/$OSG_SECURITY_PUBKEY"
+if ! gpg_wrapper --import "$GPG_HOME/$OSG_SECURITY_PUBKEY"; then
+    message "Error importing OSG Security public key"
+    message "Download URL: $OSG_SECURITY_PUBKEY_URL"
+    exit 1
+fi
 
 for TYPES in NEW IGTFNEW; do
     SUFFIX=$TYPES
