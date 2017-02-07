@@ -9,6 +9,7 @@ INSTALLBASE=${GOC}/repo
 CAINSTALL=${INSTALLBASE}/cadist
 CADISTREPO="https://vdt.cs.wisc.edu/svn/certs/trunk/cadist"
 CADISTREPORELEASETYPE="release"
+RPMREPO=osg
 
 OSG_SECURITY_PUBKEY_URL=https://twiki.opensciencegrid.org/twiki/pub/Security/SecurityTeamMembers/osg-security-pubkey.asc
 OSG_SECURITY_PUBKEY=$(basename "$OSG_SECURITY_PUBKEY_URL")
@@ -66,7 +67,7 @@ for TYPES in NEW IGTFNEW; do
 
     downloaddir=$(mktemp -d)
     pushd $downloaddir >/dev/null
-    yumdownloader --source $RPM >/dev/null
+    yumdownloader --disablerepo=\* --enablerepo=${RPMREPO}-source --source $RPM >/dev/null
     rpmfile=$(/bin/ls *.src.rpm)
     if [[ ! -f $rpmfile ]]; then
         message "$RPM: unable to download from repos"
