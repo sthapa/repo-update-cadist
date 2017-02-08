@@ -175,15 +175,37 @@ for TYPES in NEW IGTFNEW; do
     ln -f -s ${VERSION_CA}${SUFFIX}/INDEX.txt ${TMPROOT}/cadist/INDEX-${CURRDIR}.txt
     ln -f -s ${VERSION_CA}${SUFFIX}/INDEX.html ${TMPROOT}/cadist/index-${CURRDIR}.html
     ln -f -n -s ${VERSION_CA}${SUFFIX} ${TMPROOT}/cadist/${CURRDIR}
-    chmod -R ug+rwX ${TMPROOT}/cadist/
-    chmod -R o+rX ${TMPROOT}/cadist/
-    chown ${USER}:goc ${TMPROOT}/cadist/
 
     ## Log a new version
     if [[ ! -d ${CAINSTALL}/${VERSION_CA}${SUFFIX} ]]; then
-        echo "$(date) updated to version ${VERSION_CA}${SUFFIX}" >>${LOGREDIRECTFILENAME}.stdout
+        echo "$(date) downloaded new version ${VERSION_CA}${SUFFIX}" >>${LOGREDIRECTFILENAME}.stdout
     fi
 done
+
+chmod -R ug+rwX "${TMPROOT}/cadist/"
+chmod -R o+rX "${TMPROOT}/cadist/"
+chown ${USER}:goc "${TMPROOT}/cadist/"
+
+# if $CAINSTALL is /usr/local/repo/cadist:
+#  NEWDIR is /usr/local/repo/.cadist.new
+#  OLDDIR is /usr/local/repo/.cadist.old
+NEWDIR=$(dirname "$CAINSTALL")/.$(basename "$CAINSTALL").new
+OLDDIR=$(dirname "$CAINSTALL")/.$(basename "$CAINSTALL").old
+# Do the actual update. Minimize the actual time that $CAINSTALL spends being non-existant
 mkdir -p "$INSTALLBASE"
-rm -rf "$CAINSTALL"
-mv "$TMPROOT/cadist" "$CAINSTALL"
+(
+    set -e # bail on first error
+    if [[ -e $CAINSTALL ]]; then
+        rm -rf "$NEWDIR"
+        rm -rf "$OLDDIR"
+
+        # -T: never treat destination as a directory, i.e. always bail if
+        # destination present and nonempty
+        mv -fT "$TMPROOT/cadist" "$NEWDIR"
+        mv -fT "$CAINSTALL" "$OLDDIR"
+        mv -fT "$NEWDIR" "$CAINSTALL"
+        rm -rf "$OLDDIR" || :
+    else
+        mv -fT "$TMPROOT/cadist" "$CAINSTALL"
+    fi
+) || message "Unable to update!"
