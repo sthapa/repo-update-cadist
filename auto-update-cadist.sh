@@ -95,13 +95,12 @@ for TYPES in NEW IGTFNEW; do
 
     # Only by parsing the tarball name can we find out the version of the CA certs
     # TARBALL should be like "osg-certificates-1.59NEW.tar.gz"
-    if ! echo "$TARBALL" | grep -Eq "^osg-certificates-[[:digit:]]+\.[[:digit:]]+${SUFFIX}.tar.gz$"; then
+    if [[ ! $TARBALL =~ ^osg-certificates-([[:digit:]]+\.[[:digit:]]+)${SUFFIX}\.tar\.gz$ ]]; then
         message "$TARBALL: bad tarball name"
         message "Extracted from $RPMFILE"
         exit 1
     fi
-    v=${TARBALL%${SUFFIX}.tar.gz}     # chop off the end
-    VERSION_CA=${v#osg-certificates-} # and the beginning
+    VERSION_CA=${BASH_REMATCH[1]}
     # VERSION_CA should be like "1.59"
 
     ## Download the GPG signature of the tarball from SVN and verify
