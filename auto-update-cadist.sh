@@ -70,10 +70,13 @@ for TYPES in NEW IGTFNEW; do
             ;;
     esac
 
+    ## Get the CA certs distribution tarball by downloading the source RPM of
+    ## the appropriate package and extracting the tarball from it.
     DOWNLOADDIR=$TMPROOT/download-$SUFFIX
     mkdir -p "$DOWNLOADDIR"
     pushd "$DOWNLOADDIR" >/dev/null
-    yumdownloader --disablerepo=\* --enablerepo="$RPMREPO-source" --source "$RPM" >/dev/null
+    # yumdownloader prints errors to stdout and is quiet when everything is ok
+    yumdownloader --disablerepo=\* --enablerepo="$RPMREPO-source" --source "$RPM" 1>&2
     RPMFILE=$(/bin/ls *.src.rpm)
     if [[ ! -f $RPMFILE ]]; then
         message "$RPM: unable to download from repos"
@@ -85,13 +88,20 @@ for TYPES in NEW IGTFNEW; do
         message "$RPMFILE: couldn't extract tarball"
         exit 1
     fi
+
+    # Only by parsing the tarball name can we find out the version of the CA certs
+    # TARBALL should be like "osg-certificates-1.59NEW.tar.gz"
     if ! echo "$TARBALL" | grep -Eq "^osg-certificates-[[:digit:]]+\.[[:digit:]]+${SUFFIX}.tar.gz$"; then
         message "$TARBALL: bad tarball name"
         message "Extracted from $RPMFILE"
         exit 1
     fi
-    v=${TARBALL%${SUFFIX}.tar.gz}
-    VERSION_CA=${v#osg-certificates-}
+    v=${TARBALL%${SUFFIX}.tar.gz}     # chop off the end
+    VERSION_CA=${v#osg-certificates-} # and the beginning
+    # VERSION_CA should be like "1.59"
+
+    ## Download the GPG signature of the tarball from SVN and verify
+    ## the tarball we extracted
     SIGFILE=${TARBALL}.sig
     SIGFILE_URL=${CADISTREPO}/${CADISTREPORELEASETYPE}/${SIGFILE}
     if ! svn export -q --force "$SIGFILE_URL" "$SIGFILE"; then
@@ -104,6 +114,7 @@ for TYPES in NEW IGTFNEW; do
         exit 1
     fi
 
+    ## Save the tarball and the sigfile
     CADIR="${TMPROOT}/cadist/${VERSION_CA}${SUFFIX}"
     CATARBALL="${CADIR}/$TARBALL"
     CASIGFILE="${CADIR}/$SIGFILE"
@@ -111,9 +122,15 @@ for TYPES in NEW IGTFNEW; do
     mkdir -p "${CADIR}"
     mv -f "$TARBALL" "$CATARBALL"
     mv -f "$SIGFILE" "$CASIGFILE"
+
+    # Clean up
     popd >/dev/null
     rm -rf "$DOWNLOADDIR"
 
+
+    ## Download the "version" file from SVN - this has a name like
+    ## ca-certs-version-1.59NEW and is a txt file with the md5sum of the
+    ## tarball in it.
     VERSIONFILE_URL=${CADISTREPO}/${CADISTREPORELEASETYPE}/ca-certs-version-${VERSION_CA}${SUFFIX}
     VERSIONFILE=${TMPROOT}/cadist/ca-certs-version${FILEEXT}
     if ! svn export -q --force "$VERSIONFILE_URL" "$VERSIONFILE"; then
@@ -122,6 +139,7 @@ for TYPES in NEW IGTFNEW; do
         exit 1
     fi
 
+    ## Check the md5sums
     expected_md5sum=$(
         perl -lne '/^\s*tarball_md5sum\s*=\s*(\w+)/ and print "$1"' \
             "$VERSIONFILE")
@@ -134,13 +152,17 @@ for TYPES in NEW IGTFNEW; do
         exit 1
     fi
 
+
     EXTRACT_FILES="certificates/CHANGES certificates/INDEX.html certificates/INDEX.txt"
     cd "$CADIR"
 
     ## Extract INDEX.txt and CHANGES file; move them appropriately
     tar --no-same-owner -zxf "${CATARBALL}" -C "$CADIR"
     mv ${EXTRACT_FILES} "$CADIR"
+    # also get the cacerts_md5sum.txt file which has the md5sums of the
+    # individual certs inside the tarball
     mv certificates/cacerts_md5sum.txt ${TMPROOT}/cadist/cacerts_md5sum${FILEEXT}.txt
+    # clean up
     rm -rf "${CADIR}/certificates/"
 
     ## Create relevant symlinks including current distro
