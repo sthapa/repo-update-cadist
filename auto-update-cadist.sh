@@ -21,6 +21,10 @@ LOGREDIRECTFILENAME="/var/log/auto-update-log"
 exec 2>>$LOGREDIRECTFILENAME.stderr
 
 
+[[ $(id -u) == 0 ]] || { message "Not running as root. Bailing."; exit 1; }
+which yumdownloader &> /dev/null  ||  { message "yumdownloader not found. Install the yum-utils package."; exit 1; }
+
+
 GPG_HOME=$TMPROOT/GPG_HOME
 mkdir -p "$GPG_HOME"
 
