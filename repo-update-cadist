@@ -179,9 +179,11 @@ for TYPES in NEW IGTFNEW; do
     ln -f -s ${VERSION_CA}${SUFFIX}/INDEX.html ${TMPROOT}/cadist/index-${CURRDIR}.html
     ln -f -n -s ${VERSION_CA}${SUFFIX} ${TMPROOT}/cadist/${CURRDIR}
 
+    UPDATELOG=$TMPROOT/update.log
+    touch $UPDATELOG
     ## Log a new version
     if [[ ! -d ${CAINSTALL}/${VERSION_CA}${SUFFIX} ]]; then
-        echo "$(date) downloaded new version ${VERSION_CA}${SUFFIX}" >>${LOGREDIRECTFILENAME}.stdout
+        echo "$(date) updated to new version ${VERSION_CA}${SUFFIX}" >>$UPDATELOG
     fi
 done
 
@@ -211,4 +213,9 @@ mkdir -p "$INSTALLBASE"
     else
         mv -fT "$TMPROOT/cadist" "$CAINSTALL"
     fi
-) || message "Unable to update!"
+); ret=$?
+if [[ $ret == 0 ]]; then
+    cat $UPDATELOG >> $LOGREDIRECTFILENAME.stdout
+else
+    message "Unable to update!"
+fi
