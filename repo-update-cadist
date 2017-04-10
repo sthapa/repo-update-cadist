@@ -53,6 +53,10 @@ if ! gpg_wrapper --import "$GPG_HOME/$OSG_SECURITY_PUBKEY"; then
     exit 1
 fi
 
+# Clear caches so we download the latest version
+yum --disablerepo=\* --enablerepo="$RPMREPO-source" clean all 1>&2
+yum --disablerepo=\* --enablerepo="$RPMREPO-source" clean expire-cache 1>&2
+
 for TYPES in NEW IGTFNEW; do
     SUFFIX=$TYPES
     case ${TYPES} in
