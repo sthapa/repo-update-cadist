@@ -1,5 +1,5 @@
 #!/bin/bash
-## minimal script to update cadist on repo1,repo2,repo-itb
+## update cadist on repo1,repo2,repo-itb
 
 set -o nounset
 
