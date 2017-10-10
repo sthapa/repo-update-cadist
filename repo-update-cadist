@@ -137,7 +137,8 @@ for TYPES in NEW IGTFNEW; do
 
     ## Download the "version" file from SVN - this has a name like
     ## ca-certs-version-1.59NEW and is a txt file with the md5sum of the
-    ## tarball in it.
+    ## tarball in it. Then rename it to add the "-new" or "-igtf-new"
+    ## suffix.
     VERSIONFILE_URL=${CADISTREPO}/${CADISTREPORELEASETYPE}/ca-certs-version-${VERSION_CA}${SUFFIX}
     VERSIONFILE=${TMPROOT}/cadist/ca-certs-version${FILEEXT}
     if ! svn export -q --force "$VERSIONFILE_URL" "$VERSIONFILE"; then
@@ -167,10 +168,19 @@ for TYPES in NEW IGTFNEW; do
     tar --no-same-owner -zxf "${CATARBALL}" -C "$CADIR"
     mv ${EXTRACT_FILES} "$CADIR"
     # also get the cacerts_md5sum.txt file which has the md5sums of the
-    # individual certs inside the tarball
+    # individual certs inside the tarball and rename it to add the "-new"
+    # or "-igtf-new" suffix
     mv certificates/cacerts_md5sum.txt ${TMPROOT}/cadist/cacerts_md5sum${FILEEXT}.txt
     # clean up
     rm -rf "${CADIR}/certificates/"
+
+    # Update links in INDEX.html to point to the renamed locations of
+    # the ca-certs-version and cacerts_md5sum.txt files (e.g.
+    # "ca-certs-version-new" and "cacerts_md5sum-new.txt")
+    # (SOFTWARE-2746)
+    sed -i -e "s|href='ca-certs-version'|href='ca-certs-version${FILEEXT}'|" \
+           -e "s|href='cacerts_md5sum.txt'|href='cacerts_md5sum${FILEEXT}.txt'|" \
+           ${VERSION_CA}${SUFFIX}/INDEX.html
 
     ## Create relevant symlinks including current distro
     cd ${TMPROOT}/cadist/
