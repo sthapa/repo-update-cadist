@@ -180,7 +180,7 @@ for TYPES in NEW IGTFNEW; do
     # (SOFTWARE-2746)
     sed -i -e "s|href='ca-certs-version'|href='ca-certs-version${FILEEXT}'|" \
            -e "s|href='cacerts_md5sum.txt'|href='cacerts_md5sum${FILEEXT}.txt'|" \
-           ${VERSION_CA}${SUFFIX}/INDEX.html
+           ${TMPROOT}/cadist/${VERSION_CA}${SUFFIX}/INDEX.html
 
     ## Create relevant symlinks including current distro
     cd ${TMPROOT}/cadist/
