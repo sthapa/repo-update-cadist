@@ -147,16 +147,25 @@ for TYPES in NEW IGTFNEW; do
         exit 1
     fi
 
-    ## Check the md5sums
-    expected_md5sum=$(
-        perl -lne '/^\s*tarball_md5sum\s*=\s*(\w+)/ and print "$1"' \
-            "$VERSIONFILE")
-    actual_md5sum=$(md5sum "$CATARBALL" | awk '{print $1}')
-
-    if [[ $expected_md5sum != $actual_md5sum ]]; then
-        message "$CATARBALL: md5sum mismatch"
-        message "Expected: $expected_md5sum"
-        message "Actual:   $actual_md5sum"
+    ## Check the checksums
+    if fgrep -q tarball_sha256sum "$VERSIONFILE"; then
+        expected_sum=$(
+            perl -lne '/^\s*tarball_sha256sum\s*=\s*(\w+)/ and print "$1"' \
+                "$VERSIONFILE")
+        actual_sum=$(sha256sum "$CATARBALL" | awk '{print $1}')
+    elif fgrep -q tarball_md5sum "$VERSIONFILE"; then
+        expected_sum=$(
+            perl -lne '/^\s*tarball_md5sum\s*=\s*(\w+)/ and print "$1"' \
+                "$VERSIONFILE")
+        actual_sum=$(md5sum "$CATARBALL" | awk '{print $1}')
+    else
+        message "$CATARBALL: checksum not found in version file $VERSIONFILE"
+        exit 1
+    fi
+    if [[ $expected_sum != $actual_sum ]]; then
+        message "$CATARBALL: checksum mismatch"
+        message "Expected: $expected_sum"
+        message "Actual:   $actual_sum"
         exit 1
     fi
 
