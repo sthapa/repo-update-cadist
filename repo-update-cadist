@@ -12,7 +12,7 @@ CADISTREPO="https://vdt.cs.wisc.edu/svn/certs/trunk/cadist"
 CADISTREPORELEASETYPE="release"
 RPMREPO=osg
 
-OSG_SECURITY_PUBKEY_URL=https://twiki.opensciencegrid.org/twiki/pub/Security/SecurityTeamMembers/osg-security-pubkey.asc
+OSG_SECURITY_PUBKEY_URL=https://raw.githubusercontent.com/opensciencegrid/security/master/docs/pgpkey/osg-security-pubkey.asc
 OSG_SECURITY_PUBKEY=$(basename "$OSG_SECURITY_PUBKEY_URL")
 
 LOGREDIRECTFILENAME="/var/log/repo-update-cadist"
