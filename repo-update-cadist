@@ -12,8 +12,43 @@ CADISTREPO="https://vdt.cs.wisc.edu/svn/certs/trunk/cadist"
 CADISTREPORELEASETYPE="release"
 RPMREPO=osg
 
-OSG_SECURITY_PUBKEY_URL=https://twiki.opensciencegrid.org/twiki/pub/Security/SecurityTeamMembers/osg-security-pubkey.asc
+OSG_SECURITY_PUBKEY_URL=https://raw.githubusercontent.com/opensciencegrid/security/master/docs/pgpkey/osg-security-pubkey.asc
 OSG_SECURITY_PUBKEY=$(basename "$OSG_SECURITY_PUBKEY_URL")
+
+usage () {
+    echo "Usage: $(basename "$0") [--testing]" >&2
+    echo "  --testing    Download from the \"osg-testing\" repositories (instead of \"osg\")" >&2
+    echo "  -h|--help    This message" >&2
+}
+
+temp=$(getopt -o 'h' --long 'help,testing' -n "$(basename "$0")" -- "$@")
+if [[ $? != 0 ]]; then
+    echo "Usage error" >&2
+    usage
+    exit 2
+fi
+eval set -- "$temp"
+while true; do
+    case $1 in
+    -h|--help)
+        usage
+        exit 0
+    ;;
+    --testing)
+        RPMREPO=osg-testing
+        shift
+    ;;
+    --)
+        shift
+        break
+    ;;
+    *)
+        echo "Internal error parsing options" >&2
+        exit 1
+    ;;
+    esac
+done
+
 
 LOGREDIRECTFILENAME="/var/log/repo-update-cadist"
 
@@ -136,7 +171,7 @@ for TYPES in NEW IGTFNEW; do
 
 
     ## Download the "version" file from SVN - this has a name like
-    ## ca-certs-version-1.59NEW and is a txt file with the md5sum of the
+    ## ca-certs-version-1.59NEW and is a txt file with the checksum of the
     ## tarball in it. Then rename it to add the "-new" or "-igtf-new"
     ## suffix.
     VERSIONFILE_URL=${CADISTREPO}/${CADISTREPORELEASETYPE}/ca-certs-version-${VERSION_CA}${SUFFIX}
@@ -147,16 +182,25 @@ for TYPES in NEW IGTFNEW; do
         exit 1
     fi
 
-    ## Check the md5sums
-    expected_md5sum=$(
-        perl -lne '/^\s*tarball_md5sum\s*=\s*(\w+)/ and print "$1"' \
-            "$VERSIONFILE")
-    actual_md5sum=$(md5sum "$CATARBALL" | awk '{print $1}')
-
-    if [[ $expected_md5sum != $actual_md5sum ]]; then
-        message "$CATARBALL: md5sum mismatch"
-        message "Expected: $expected_md5sum"
-        message "Actual:   $actual_md5sum"
+    ## Check the checksums
+    if fgrep -q tarball_sha256sum "$VERSIONFILE"; then
+        expected_sum=$(
+            perl -lne '/^\s*tarball_sha256sum\s*=\s*(\w+)/ and print "$1"' \
+                "$VERSIONFILE")
+        actual_sum=$(sha256sum "$CATARBALL" | awk '{print $1}')
+    elif fgrep -q tarball_md5sum "$VERSIONFILE"; then
+        expected_sum=$(
+            perl -lne '/^\s*tarball_md5sum\s*=\s*(\w+)/ and print "$1"' \
+                "$VERSIONFILE")
+        actual_sum=$(md5sum "$CATARBALL" | awk '{print $1}')
+    else
+        message "$CATARBALL: checksum not found in version file $VERSIONFILE"
+        exit 1
+    fi
+    if [[ $expected_sum != $actual_sum ]]; then
+        message "$CATARBALL: checksum mismatch"
+        message "Expected: $expected_sum"
+        message "Actual:   $actual_sum"
         exit 1
     fi
 
@@ -167,19 +211,32 @@ for TYPES in NEW IGTFNEW; do
     ## Extract INDEX.txt and CHANGES file; move them appropriately
     tar --no-same-owner -zxf "${CATARBALL}" -C "$CADIR"
     mv ${EXTRACT_FILES} "$CADIR"
-    # also get the cacerts_md5sum.txt file which has the md5sums of the
-    # individual certs inside the tarball and rename it to add the "-new"
-    # or "-igtf-new" suffix
-    mv certificates/cacerts_md5sum.txt ${TMPROOT}/cadist/cacerts_md5sum${FILEEXT}.txt
+    # also get the cacerts_md5sum.txt or cacerts_sha256sum.txt file which has
+    # the checksums of the individual certs inside the tarball and rename it to
+    # add the "-new" or "-igtf-new" suffix
+    foundsum=false
+    if [[ -f certificates/cacerts_sha256sum.txt ]]; then
+        mv certificates/cacerts_sha256sum.txt ${TMPROOT}/cadist/cacerts_sha256sum${FILEEXT}.txt
+        foundsum=true
+    fi
+    if [[ -f certificates/cacerts_md5sum.txt ]]; then
+        mv certificates/cacerts_md5sum.txt ${TMPROOT}/cadist/cacerts_md5sum${FILEEXT}.txt
+        foundsum=true
+    fi
+    if ! $foundsum; then
+        echo "checksum txt file not found for $TYPES"
+        exit 1
+    fi
     # clean up
     rm -rf "${CADIR}/certificates/"
 
-    # Update links in INDEX.html to point to the renamed locations of
-    # the ca-certs-version and cacerts_md5sum.txt files (e.g.
-    # "ca-certs-version-new" and "cacerts_md5sum-new.txt")
+    # Update links in INDEX.html to point to the renamed locations of the
+    # ca-certs-version, cacerts_md5sum.txt, and/or cacerts_sha256sum.txt files
+    # (e.g.  "ca-certs-version-new" and "cacerts_md5sum-new.txt")
     # (SOFTWARE-2746)
     sed -i -e "s|href='ca-certs-version'|href='ca-certs-version${FILEEXT}'|" \
            -e "s|href='cacerts_md5sum.txt'|href='cacerts_md5sum${FILEEXT}.txt'|" \
+           -e "s|href='cacerts_sha256sum.txt'|href='cacerts_sha256sum${FILEEXT}.txt'|" \
            ${TMPROOT}/cadist/${VERSION_CA}${SUFFIX}/INDEX.html
 
     ## Create relevant symlinks including current distro
