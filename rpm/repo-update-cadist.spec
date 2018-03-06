@@ -10,7 +10,9 @@ BuildArch: noarch
 
 Source0:   %{name}
 
+%if 0%{?rhel} < 7
 BuildRoot: %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
+%endif
 
 %description
 %{summary}
@@ -19,12 +21,17 @@ BuildRoot: %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 mkdir -p $RPM_BUILD_ROOT%{_bindir}
 install -pm 755 %{SOURCE0}  $RPM_BUILD_ROOT%{_bindir}/
 
+%if 0%{?rhel} < 7
 %clean
 rm -rf $RPM_BUILD_ROOT
+%endif
 
 %files
 %{_bindir}/%{name}
 
 %changelog
-* Mon Mar 05 2018 Tim Theisen <tim@cs.wisc.edu> 1.0.0-1
+* Tue Mar 06 2018 Edgar Fajardo <efajardo@physics.ucsd.edu> 1.0.0-2
+- Clean and buildroot section only needed for el7.
+
+* Mon Mar 05 2018 Edgar Fajardo <efajardo@physics.ucsd.edu> 1.0.0-1
 - First RPM 1.0.0 (SOFTWARE-3102)
