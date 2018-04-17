@@ -11,18 +11,19 @@ Requires: subversion
 Requires: wget
 Requires: yum-utils
 
-
-Source0:   %{name}
-Source1:   %{name}.cron
+Source0:   %{name}-%{version}.tar.gz
 
 %description
 %{summary}
 
+%prep
+%setup
+
 %install
 mkdir -p $RPM_BUILD_ROOT%{_bindir}
-install -pm 755 %{SOURCE0}  $RPM_BUILD_ROOT%{_bindir}/
+install -pm 755 %{name}  $RPM_BUILD_ROOT%{_bindir}/
 mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/cron.d
-install -pm 644 %{SOURCE1}  $RPM_BUILD_ROOT%{_sysconfdir}/cron.d/
+install -pm 644 %{name}.cron  $RPM_BUILD_ROOT%{_sysconfdir}/cron.d/
 
 %files
 %{_bindir}/%{name}
