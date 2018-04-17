@@ -1,6 +1,6 @@
 Name:      repo-update-cadist
 Summary:   repo-update-cadist
-Version:   1.0.1
+Version:   1.0.2
 Release:   1%{?dist}
 License:   Apache 2.0
 Group:     Grid
@@ -30,6 +30,9 @@ install -pm 644 %{name}.cron  $RPM_BUILD_ROOT%{_sysconfdir}/cron.d/
 %config(noreplace) %{_sysconfdir}/cron.d/%{name}.cron
 
 %changelog
+* Tue Apr 17 2018 Mátyás Selmeci <matyas@cs.wisc.edu> 1.0.2-1
+- Fix comment in cron job
+
 * Tue Apr 17 2018 Mátyás Selmeci <matyas@cs.wisc.edu> 1.0.1-1
 - Add cron job
 - Add dependencies
