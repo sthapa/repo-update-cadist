@@ -1,0 +1,4 @@
+# Update cadist under /usr/local/repo/cadist
+# Updates and errors go to /var/log/auto-update-log
+*/10 * * * * root /usr/bin/repo-update-cadist
+
