@@ -1,4 +1,4 @@
 # Update cadist under /usr/local/repo/cadist
 # Updates and errors go to /var/log/repo-update-cadist.{stdout,stderr}
-*/10 * * * * root flock -n /var/lock/repo-update-cadist /usr/bin/repo-update-cadist
+0 * * * * root flock -n /var/lock/repo-update-cadist /usr/bin/repo-update-cadist
 
