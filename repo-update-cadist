@@ -56,6 +56,11 @@ LOGREDIRECTFILENAME="/var/log/repo-update-cadist"
 exec 2>>$LOGREDIRECTFILENAME.stderr
 
 
+message () {
+    echo "$(date)" "$@" >&2
+}
+
+
 [[ $(id -u) == 0 ]] || { message "Not running as root. Bailing."; exit 1; }
 which yumdownloader &> /dev/null  ||  { message "yumdownloader not found. Install the yum-utils package."; exit 1; }
 
@@ -75,10 +80,6 @@ gpg_wrapper () {
     fi
     rm -f $outputfile
     return $ret
-}
-
-message () {
-    echo "$(date)" "$@" >&2
 }
 
 wget -q "$OSG_SECURITY_PUBKEY_URL" -O "$GPG_HOME/$OSG_SECURITY_PUBKEY"
@@ -260,7 +261,7 @@ done
 
 chmod -R ug+rwX "${TMPROOT}/cadist/"
 chmod -R o+rX "${TMPROOT}/cadist/"
-chown ${USER}:goc "${TMPROOT}/cadist/"
+chown root:goc "${TMPROOT}/cadist/"
 
 # if $CAINSTALL is /usr/local/repo/cadist:
 #  NEWDIR is /usr/local/repo/.cadist.new

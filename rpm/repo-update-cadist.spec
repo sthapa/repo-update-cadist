@@ -1,6 +1,6 @@
 Name:      repo-update-cadist
 Summary:   repo-update-cadist
-Version:   1.0.2
+Version:   1.0.3
 Release:   1%{?dist}
 License:   Apache 2.0
 Group:     Grid
@@ -22,14 +22,29 @@ Source0:   %{name}-%{version}.tar.gz
 %install
 mkdir -p $RPM_BUILD_ROOT%{_bindir}
 install -pm 755 %{name}  $RPM_BUILD_ROOT%{_bindir}/
+%if 0%{?rhel} >= 7
+mkdir -p $RPM_BUILD_ROOT%{_unitdir}
+install -pm 644 %{name}.service $RPM_BUILD_ROOT%{_unitdir}
+install -pm 644 %{name}.timer $RPM_BUILD_ROOT%{_unitdir}
+%else
 mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/cron.d
 install -pm 644 %{name}.cron  $RPM_BUILD_ROOT%{_sysconfdir}/cron.d/
+%endif
 
 %files
 %{_bindir}/%{name}
+%if 0%{?rhel} >= 7
+%{_unitdir}/%{name}.service
+%{_unitdir}/%{name}.timer
+%else
 %config(noreplace) %{_sysconfdir}/cron.d/%{name}.cron
+%endif
 
 %changelog
+* Fri Apr 27 2018 Carl Edquist <edquist@cs.wisc.edu> - 1.0.3-1
+- Add systemd service/timer and locking to cron job (SOFTWARE-3234)
+- Only run service hourly (SOFTWARE-3238)
+
 * Tue Apr 17 2018 Mátyás Selmeci <matyas@cs.wisc.edu> 1.0.2-1
 - Fix comment in cron job
 
